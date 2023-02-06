@@ -21,8 +21,18 @@ bot to post to discord, also monitor a server for posts that might need to be ac
 #### Api to the outside
 a web listener for api calls, most of the time just transfer content to redis to be actioned by something else.
 
+### Endpoints
+`/api/rproxy/<queue-stub>`
+
+Also plan to use some sort of extra path just for ob-security
+
+main use: pushes (`LPUSH`) the data into a redis list. These are then extracted by another process.
+
+
 #### DNS log parser
 Not sure of all the features yet, but a 'big brother' appthat will go through CoreDNS logs and report on things (ie, this user's phone has returned).
 
 #### Pod or volume builders
 for home wiki, rebuild based on release in github
+
+

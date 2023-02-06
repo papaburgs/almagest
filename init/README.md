@@ -5,7 +5,7 @@ All of these services are planned to be run in a single podman pod.
 
 ## POD
 ```bash
-podman pod create almagest
+podman pod create --name almagest
 ```
 
 ## REDIS

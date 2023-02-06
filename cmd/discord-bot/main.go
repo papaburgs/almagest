@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/papaburgs/almagest/pkg/config"
 )
 
 func main() {
-	err := config.ReadConfig()
+	log.Print("Reading config file from ./config.json")
+	err := config.ReadConfig("config.json")
 
 	if err != nil {
 		fmt.Println(err.Error())
