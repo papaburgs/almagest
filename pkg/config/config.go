@@ -2,9 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"log"
+
+	"github.com/go-redis/redis"
 )
 
 var (
@@ -14,24 +14,19 @@ var (
 type configStruct struct {
 	Token     string `json:"Token"`
 	BotPrefix string `json:"BotPrefix"`
-	BotID     string `json:"BotID"`
+	BotID     string
+	Channels  map[string]string
+	RedisDB   redis.Client
 }
 
 func ReadConfig(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 
 	if err != nil {
-		fmt.Println(err.Error())
 		return err
 	}
 
 	err = json.Unmarshal(file, &Config)
-
-	if err != nil {
-		log.Print(err.Error())
-		return err
-	}
-
-	return nil
+	return err
 
 }

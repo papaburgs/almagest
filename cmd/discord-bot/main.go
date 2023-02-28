@@ -12,13 +12,15 @@ func main() {
 	err := config.ReadConfig("config.json")
 
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("Could not read config file: ", err.Error())
 		return
 	}
 
-	Start()
+	done := make(chan bool, 1)
+	Start(done)
 
 	// hold application up indefinatly
-	<-make(chan struct{})
-	return
+	log.Print("at done")
+	<-done
+	log.Print("past done")
 }
