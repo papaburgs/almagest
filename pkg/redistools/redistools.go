@@ -3,6 +3,7 @@ package redistools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	redis "github.com/redis/go-redis/v9"
 )
@@ -15,7 +16,11 @@ type PSMessage struct {
 	// Channel can be used for discord channel
 	Channel string `json:"channel,omitempty"`
 	// Content to be posted to discord
-	Content string `json:"message,omitempty"`
+	Content string `json:"content,omitempty"`
+	// MessageID is a uuid used to track transactions
+	MessageID string `json:"mid,omitempty"`
+	// ResponseTo is populated with the originating message id to indicate its a response or follow up
+	ResponseTo string `json:"rid,omitempty"`
 }
 
 type AlmagestRedisClient struct {
@@ -62,6 +67,9 @@ func (a AlmagestRedisClient) Subscribe() <-chan *redis.Message {
 // Publish takes in a PSMessage, converts to json and publishes
 // it to the almagest channel
 func (a AlmagestRedisClient) Publish(m PSMessage) error {
+	if m.MessageID == "" {
+		return fmt.Errorf("MessageID is required")
+	}
 	message, err := json.Marshal(m)
 	if err != nil {
 		return err
