@@ -64,12 +64,12 @@ func Start(done chan bool) {
 		return
 	}
 
+	// find the details on the bot, so we have the ID for later
 	u, err := goBot.User("@me")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
-	dh.BotID = u.ID
 
 	goBot.AddHandler(messageHandler)
 
@@ -80,6 +80,7 @@ func Start(done chan bool) {
 	dh = &discordHelper{
 		Session:  goBot,
 		Channels: make(map[string]string),
+		BotID:    u.ID,
 	}
 	// build channel list
 	for _, g := range goBot.State.Ready.Guilds {
