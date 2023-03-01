@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
-	"github.com/papaburgs/almagest/pkg/config"
 	rt "github.com/papaburgs/almagest/pkg/redistools"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -15,6 +15,7 @@ import (
 type discordHelper struct {
 	Session  *discordgo.Session
 	Channels map[string]string
+	BotID    string
 }
 
 func (d *discordHelper) Dispatch(channel, message string) error {
@@ -37,15 +38,26 @@ func (d *discordHelper) Dispatch(channel, message string) error {
 var arc *rt.AlmagestRedisClient
 var dh *discordHelper
 
-// Start starts the bot and populates some config
+func main() {
+	done := make(chan bool, 1)
+	Start(done)
+
+	// hold application up indefinatly
+	<-done
+}
+
+// Start starts the bot
 func Start(done chan bool) {
 	// define the redis client
 	arc = rt.New()
 
 	// setup the discord bot
 	var goBot *discordgo.Session
-	c := config.Config
-	goBot, err := discordgo.New("Bot " + c.Token)
+	token := os.Getenv("DISCORD_BOT_TOKEN")
+	if token == "" {
+		log.Fatal("Need DISCORD_BOT_TOKEN to be set")
+	}
+	goBot, err := discordgo.New("Bot " + token)
 
 	if err != nil {
 		log.Println(err.Error())
@@ -57,7 +69,7 @@ func Start(done chan bool) {
 		log.Println(err.Error())
 		return
 	}
-	c.BotID = u.ID
+	dh.BotID = u.ID
 
 	goBot.AddHandler(messageHandler)
 
@@ -128,9 +140,8 @@ func redisListener() {
 }
 
 func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-	c := config.Config
 	log.Print("running message handler")
-	if m.Author.ID == c.BotID {
+	if m.Author.ID == dh.BotID {
 		log.Print("message was from me, ignoring")
 		return
 	}
