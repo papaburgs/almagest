@@ -4,7 +4,7 @@ set -e
 ctr=$(buildah from fedora)
 mnt=$(buildah mount $ctr)
 
-cp bin/discord-bot $mnt/discord-bot
+cp build/discord/discord-bot $mnt/discord-bot
 chmod +x $mnt/discord-bot
 
 buildah config --entrypoint /discord-bot $ctr
