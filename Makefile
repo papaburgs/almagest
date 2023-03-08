@@ -1,6 +1,6 @@
 all: discord-bot
 
-discord-bot: bin/discord-bot
+discord-bot: bin/discord-bot discord-gitc
 	podman unshare init/build-discord-bot.sh
 
 bin/discord-bot:
@@ -10,4 +10,14 @@ bin/discord-bot:
 clean:
 	rm -rf build
 
-PHONY: all clean discord-bot
+cmd/discord-bot/gitc.txt: gitc
+	ln gitc.txt cmd/discord-bot/gitc.txt
+
+cmd/api/gitc.txt: gitc
+	ln gitc.txt cmd/api/gitc.txt
+
+gitc:
+	git rev-parse --short HEAD >gitc.txt
+
+
+PHONY: all clean discord-bot gitc

@@ -4,9 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/charmbracelet/log"
+	"github.com/google/uuid"
 	redis "github.com/redis/go-redis/v9"
 )
+
+type ServiceType uint
 
 const pubsub string = "almagest"
 
@@ -21,12 +26,13 @@ type PSMessage struct {
 	MessageID string `json:"mid,omitempty"`
 	// ResponseTo is populated with the originating message id to indicate its a response or follow up
 	ResponseTo string `json:"rid,omitempty"`
+	// Health is used when responding to a healthcheck
+	Health string `json:"health,omitempty"`
 }
 
 type AlmagestRedisClient struct {
-	Subs     []*redis.PubSub
-	c        *redis.Client
-	channels map[string]string
+	Subs []*redis.PubSub
+	c    *redis.Client
 }
 
 // New makes a new AlmagestRedisClient and returns pointer to it
@@ -40,10 +46,6 @@ func New() *AlmagestRedisClient {
 
 	arc := AlmagestRedisClient{
 		c: rdb,
-		channels: map[string]string{
-			"discord": "almagest|discord",
-			"uptime":  "almagest|uptime",
-		},
 	}
 	return &arc
 }
@@ -68,12 +70,36 @@ func (a AlmagestRedisClient) Subscribe() <-chan *redis.Message {
 // it to the almagest channel
 func (a AlmagestRedisClient) Publish(m PSMessage) error {
 	if m.MessageID == "" {
+		log.Error("MessageID is required")
 		return fmt.Errorf("MessageID is required")
 	}
 	message, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-
+	log.Debug("Publishing message", "content", string(message))
 	return a.c.Publish(context.Background(), pubsub, string(message)).Err()
+}
+
+// PostStatus makes a status message
+func (a AlmagestRedisClient) PostStatus(s, v, mid string) error {
+	dsm := PSMessage{
+		Service:    "healthcheck",
+		ResponseTo: mid,
+		Content:    fmt.Sprintf("%s|%s|ok", s, v),
+	}
+	return a.Publish(dsm)
+}
+
+func (a AlmagestRedisClient) PublishWatchdog(service string) error {
+	m := PSMessage{
+		Service: "watchdog",
+		Content: service,
+	}
+	t := time.NewTicker(30 * time.Second)
+	for {
+		_ = <-t.C
+		m.MessageID = uuid.NewString()
+		a.Publish(m)
+	}
 }
