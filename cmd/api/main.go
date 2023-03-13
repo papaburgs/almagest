@@ -101,13 +101,16 @@ func main() {
 		c := arc.Subscribe()
 		myMessageID := uuid.NewString()
 		dl := statusList{Status: "success", Services: []statusItem{}}
-		// me := statusItem{
-		// 	Service: "api",
-		// 	Version: gitCommit,
-		// 	Health:  "ok",
-		// }
-		//dl.Services = append(dl.Services, me)
+
+		// send status request message
 		dsm := rt.PSMessage{
+			Service:   "healthcheck",
+			MessageID: myMessageID,
+		}
+		arc.Publish(dsm)
+
+		//now respond to my own message
+		dsm = rt.PSMessage{
 			Service:    "healthcheck",
 			MessageID:  myMessageID,
 			ResponseTo: myMessageID,
@@ -115,6 +118,7 @@ func main() {
 		dsm.Content = fmt.Sprintf("%s|%s|ok", "api", strings.TrimSpace(gitCommit))
 		arc.Publish(dsm)
 
+		// waiting 15 seconds or the responses
 		timer := time.NewTimer(15 * time.Second)
 		timerDone := true
 

@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
+	"strings"
+
+	_ "embed"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 	rt "github.com/papaburgs/almagest/pkg/redistools"
 	redis "github.com/redis/go-redis/v9"
@@ -38,7 +41,11 @@ func (d *discordHelper) Dispatch(channel, message string) error {
 var arc *rt.AlmagestRedisClient
 var dh *discordHelper
 
+//go:embed gitc.txt
+var gitCommit string
+
 func main() {
+	log.SetLevel(log.DebugLevel)
 	done := make(chan bool, 1)
 	Start(done)
 
@@ -60,14 +67,14 @@ func Start(done chan bool) {
 	goBot, err := discordgo.New("Bot " + token)
 
 	if err != nil {
-		log.Println(err.Error())
+		log.Error("Error starting discord", "error", err)
 		return
 	}
 
 	// find the details on the bot, so we have the ID for later
 	u, err := goBot.User("@me")
 	if err != nil {
-		log.Println(err.Error())
+		log.Error("Error starting finding details", "error", err)
 		return
 	}
 
@@ -94,18 +101,18 @@ func Start(done chan bool) {
 		}
 		for _, c := range channels {
 			if c.Type == discordgo.ChannelTypeGuildText {
-				log.Printf("adding channel %s [%s]", c.Name, c.ID)
+				log.Debug("adding channel %s [%s]", c.Name, c.ID)
 				dh.Channels[c.Name] = c.ID
 			}
 		}
 	}
 
 	if err != nil {
-		log.Println(err.Error())
+		log.Error(err.Error())
 		return
 	}
 
-	log.Println("Bot is running!")
+	log.Info("Bot is running!")
 	// redisListener is blocking
 	redisListener()
 	done <- true
@@ -123,18 +130,31 @@ func redisListener() {
 		msg = <-c
 		err = json.Unmarshal([]byte(msg.Payload), &psm)
 		if err != nil {
-			log.Println("Could not decode message ", msg.Payload)
+			log.Error("Could not decode message ", "payload", msg.Payload)
 			continue
 		}
+
+		log.Debug(fmt.Sprintf("Saw a message: %#v", psm))
 		if psm.Service == "discord" {
-			log.Printf("Service: %s, send to %s, with message %s\n",
-				psm.Service,
-				psm.Channel,
-				psm.Content,
-			)
+			log.Debug("Sending message", "service", psm.Service, "channel", psm.Channel, "content", psm.Content)
 			err = dh.Dispatch(psm.Channel, psm.Content)
 			if err != nil {
 				return
+			}
+		}
+		if psm.Service == "healthcheck" {
+			log.Debug("Saw a healthcheck")
+			log.Debug(fmt.Sprintf("%#v", psm))
+			if psm.ResponseTo == "" {
+				log.Debug("looks like a new one, sending response")
+
+				dsm := rt.PSMessage{
+					Service:    "healthcheck",
+					MessageID:  uuid.NewString(),
+					ResponseTo: psm.MessageID,
+				}
+				dsm.Content = fmt.Sprintf("%s|%s|ok", "api", strings.TrimSpace(gitCommit))
+				arc.Publish(dsm)
 			}
 		}
 	}
@@ -148,8 +168,8 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if m.Content == "ping" {
-		log.Print("its a message for me, sending pong")
-		log.Println(m.ChannelID)
+		log.Debug("its a message for me, sending pong")
+		log.Debug(m.ChannelID)
 		_, _ = s.ChannelMessageSend(m.ChannelID, "pong")
 	}
 
@@ -161,7 +181,7 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		log.Print("its a message for me, someone is looking for uptime")
 		err := arc.Publish(dsm)
 		if err != nil {
-			log.Printf("error posting to redis: %s", err)
+			log.Error("error posting to redis: %s", "error", err)
 		}
 		log.Print("published to uptime service")
 		_, _ = s.ChannelMessageSend(m.ChannelID, "Uptime request recieved, please hold")
