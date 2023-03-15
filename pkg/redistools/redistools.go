@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/google/uuid"
 	redis "github.com/redis/go-redis/v9"
 )
 
@@ -77,29 +75,6 @@ func (a AlmagestRedisClient) Publish(m PSMessage) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("Publishing message", "content", string(message))
+	log.Debug("Publish", "content", string(message))
 	return a.c.Publish(context.Background(), pubsub, string(message)).Err()
-}
-
-// PostStatus makes a status message
-func (a AlmagestRedisClient) PostStatus(s, v, mid string) error {
-	dsm := PSMessage{
-		Service:    "healthcheck",
-		ResponseTo: mid,
-		Content:    fmt.Sprintf("%s|%s|ok", s, v),
-	}
-	return a.Publish(dsm)
-}
-
-func (a AlmagestRedisClient) PublishWatchdog(service string) error {
-	m := PSMessage{
-		Service: "watchdog",
-		Content: service,
-	}
-	t := time.NewTicker(30 * time.Second)
-	for {
-		_ = <-t.C
-		m.MessageID = uuid.NewString()
-		a.Publish(m)
-	}
 }

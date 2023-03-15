@@ -97,7 +97,6 @@ func main() {
 	m.HandleFunc("/api/almagest/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
 
-		var psm rt.PSMessage
 		c := arc.Subscribe()
 		myMessageID := uuid.NewString()
 		dl := statusList{Status: "success", Services: []statusItem{}}
@@ -110,13 +109,8 @@ func main() {
 		arc.Publish(dsm)
 
 		//now respond to my own message
-		dsm = rt.PSMessage{
-			Service:    "healthcheck",
-			MessageID:  myMessageID,
-			ResponseTo: myMessageID,
-		}
-		dsm.Content = fmt.Sprintf("%s|%s|ok", "api", strings.TrimSpace(gitCommit))
-		arc.Publish(dsm)
+		log.Debug("replying to health check request")
+		arc.PostStatus("api", strings.TrimSpace(gitCommit), myMessageID)
 
 		// waiting 15 seconds or the responses
 		timer := time.NewTimer(15 * time.Second)
@@ -131,13 +125,19 @@ func main() {
 				break
 			case msg := <-c:
 				log.Debug("picked up a message")
-				err := json.Unmarshal([]byte(msg.Payload), &psm)
+
+				psm, class, err := rt.ClassifyMessage(msg)
 				if err != nil {
 					log.Error("Could not decode message ", "payload", msg.Payload, "error", err)
 					continue
 				}
-				if psm.ResponseTo == myMessageID {
+				if class == rt.HealthCheckResponse && psm.ResponseTo == myMessageID {
 					content := strings.Split(psm.Content, "|")
+
+					if len(content) < 3 {
+						log.Error("Content was not split into 3")
+						continue
+					}
 
 					s := statusItem{
 						Service: content[0],
@@ -145,7 +145,6 @@ func main() {
 						Health:  content[2],
 					}
 					dl.Services = append(dl.Services, s)
-
 				}
 			}
 		}
@@ -153,6 +152,21 @@ func main() {
 
 		res, _ := json.Marshal(dl)
 		w.Write(res)
+
+	})
+
+	m.HandleFunc("/api/almagest/control/", func(w http.ResponseWriter, r *http.Request) {
+		//w.Header().Set("Content-type", "application/json")
+
+		log.Debug("got a control message", "path", r.URL.Path)
+		log.Debug("type of message", "control", r.URL.Path[22:])
+		if strings.Contain(r.URL.Path[22:], "debug") {
+			log.Debug("got a debug type message")
+			// publish a control message
+			// save it to redis for others to see
+		}
+
+		w.Write([]byte("a response"))
 
 	})
 	port := "0.0.0.0:39788"

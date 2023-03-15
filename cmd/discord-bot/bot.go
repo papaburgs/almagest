@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	_ "embed"
 
@@ -12,7 +10,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 	rt "github.com/papaburgs/almagest/pkg/redistools"
-	redis "github.com/redis/go-redis/v9"
 )
 
 type discordHelper struct {
@@ -57,6 +54,7 @@ func main() {
 func Start(done chan bool) {
 	// define the redis client
 	arc = rt.New()
+	go arc.PublishWatchdog("discord")
 
 	// setup the discord bot
 	var goBot *discordgo.Session
@@ -116,48 +114,6 @@ func Start(done chan bool) {
 	// redisListener is blocking
 	redisListener()
 	done <- true
-}
-
-func redisListener() {
-	var (
-		msg *redis.Message
-		psm rt.PSMessage
-		err error
-	)
-
-	c := arc.Subscribe()
-	for {
-		msg = <-c
-		err = json.Unmarshal([]byte(msg.Payload), &psm)
-		if err != nil {
-			log.Error("Could not decode message ", "payload", msg.Payload)
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("Saw a message: %#v", psm))
-		if psm.Service == "discord" {
-			log.Debug("Sending message", "service", psm.Service, "channel", psm.Channel, "content", psm.Content)
-			err = dh.Dispatch(psm.Channel, psm.Content)
-			if err != nil {
-				return
-			}
-		}
-		if psm.Service == "healthcheck" {
-			log.Debug("Saw a healthcheck")
-			log.Debug(fmt.Sprintf("%#v", psm))
-			if psm.ResponseTo == "" {
-				log.Debug("looks like a new one, sending response")
-
-				dsm := rt.PSMessage{
-					Service:    "healthcheck",
-					MessageID:  uuid.NewString(),
-					ResponseTo: psm.MessageID,
-				}
-				dsm.Content = fmt.Sprintf("%s|%s|ok", "api", strings.TrimSpace(gitCommit))
-				arc.Publish(dsm)
-			}
-		}
-	}
 }
 
 func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
