@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
+	"github.com/papaburgs/almagest/pkg/cfg"
 	rt "github.com/papaburgs/almagest/pkg/redistools"
 )
 
@@ -40,8 +41,19 @@ func main() {
 
 	arc = rt.New()
 	go arc.PublishWatchdog("api")
-	log.SetLevel(log.DebugLevel)
-	// this will be the base mux
+	newLevel := cfg.GetParam(arc, cfg.LogLevel)
+	switch newLevel {
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	}
+	log.Info("LogLevel updated", "level", newLevel)
+
 	m := http.NewServeMux()
 
 	m.HandleFunc("/api/almagest/discord/dispatch", func(w http.ResponseWriter, r *http.Request) {
@@ -160,14 +172,43 @@ func main() {
 
 		log.Debug("got a control message", "path", r.URL.Path)
 		log.Debug("type of message", "control", r.URL.Path[22:])
-		if strings.Contain(r.URL.Path[22:], "debug") {
-			log.Debug("got a debug type message")
-			// publish a control message
-			// save it to redis for others to see
+		options := r.URL.Query()
+		control := strings.Trim(r.URL.Path[22:], "/")
+
+		log.Info("got control message", "options", fmt.Sprintf("%v", options), "control", control)
+		// publish a control message
+
+		psm := rt.PSMessage{
+			Service:   "logupdate",
+			MessageID: uuid.NewString(),
 		}
 
-		w.Write([]byte("a response"))
+		switch control {
+		case "debug", "warn", "error", "info":
+			psm.Content = control
+		default:
+			log.Error("Invalid level", "input", control)
+			w.WriteHeader(400)
+			w.Write([]byte("Invalid level, use one of debug, info, warn, error"))
+		}
 
+		arc.Publish(psm)
+
+		switch psm.Content {
+		case "debug":
+			log.SetLevel(log.DebugLevel)
+		case "info":
+			log.SetLevel(log.InfoLevel)
+		case "warn":
+			log.SetLevel(log.WarnLevel)
+		case "error":
+			log.SetLevel(log.ErrorLevel)
+		}
+		log.Info("LogLevel updated", "level", psm.Content)
+
+		cfg.SetParam(arc, cfg.LogLevel, control)
+
+		w.Write([]byte("log level set"))
 	})
 	port := "0.0.0.0:39788"
 

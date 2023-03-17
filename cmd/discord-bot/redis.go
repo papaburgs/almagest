@@ -36,5 +36,18 @@ func redisListener() {
 			log.Debug("replying to health check request")
 			arc.PostStatus("discord", strings.TrimSpace(gitCommit), psm.MessageID)
 		}
+		if class == rt.ControlUpdateLogging {
+			switch psm.Content {
+			case "debug":
+				log.SetLevel(log.DebugLevel)
+			case "info":
+				log.SetLevel(log.InfoLevel)
+			case "warn":
+				log.SetLevel(log.WarnLevel)
+			case "error":
+				log.SetLevel(log.ErrorLevel)
+			}
+			log.Info("LogLevel updated", "level", psm.Content)
+		}
 	}
 }

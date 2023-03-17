@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/log"
 	redis "github.com/redis/go-redis/v9"
@@ -77,4 +78,30 @@ func (a AlmagestRedisClient) Publish(m PSMessage) error {
 	}
 	log.Debug("Publish", "content", string(message))
 	return a.c.Publish(context.Background(), pubsub, string(message)).Err()
+}
+
+// Get loads speciified key, at this point, only works with strings
+func (a AlmagestRedisClient) Get(k string) (string, error) {
+	ctx := context.Background()
+	res := a.c.Get(ctx, k)
+
+	if res.Err() != nil {
+		if res.Err() == redis.Nil {
+			log.Info("Key was not found", "key", k)
+			return "", nil
+		}
+		return "", res.Err()
+	}
+	return res.Val(), nil
+
+}
+
+func (a AlmagestRedisClient) Set(k, v string, d time.Duration) error {
+	ctx := context.Background()
+	err := a.c.Set(ctx, k, v, d).Err()
+	if err != nil {
+		return err
+	}
+	log.Debug("set is complete")
+	return nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -8,6 +9,7 @@ import (
 
 	_ "embed"
 
+	"github.com/papaburgs/almagest/pkg/cfg"
 	rt "github.com/papaburgs/almagest/pkg/redistools"
 )
 
@@ -20,7 +22,18 @@ func main() {
 
 	gitCommit = strings.TrimSpace(gitCommit)
 	arc = rt.New()
-	log.SetLevel(log.DebugLevel)
+	newLevel := cfg.GetParam(arc, cfg.LogLevel)
+	switch newLevel {
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	}
+	log.Info("LogLevel updated", "level", newLevel)
 
 	var (
 		msg   *redis.Message
@@ -37,12 +50,26 @@ func main() {
 			continue
 		}
 
-		if class == rt.Watchdog {
+		switch class {
+		case rt.Watchdog:
 			log.Debug("Picked up watchdog message", "service", psm.Service)
-		}
-		if class == rt.HealthCheckRequest {
+		case rt.HealthCheckRequest:
 			log.Debug("replying to health check request")
 			arc.PostStatus("watchdog", gitCommit, psm.MessageID)
+		case rt.ControlUpdateLogging:
+			switch psm.Content {
+			case "debug":
+				log.SetLevel(log.DebugLevel)
+			case "info":
+				log.SetLevel(log.InfoLevel)
+			case "warn":
+				log.SetLevel(log.WarnLevel)
+			case "error":
+				log.SetLevel(log.ErrorLevel)
+			}
+			log.Info("LogLevel updated", "level", psm.Content)
+		default:
+			log.Info("Got message for someone else", "message", fmt.Sprintf("%v", psm))
 		}
 	}
 }

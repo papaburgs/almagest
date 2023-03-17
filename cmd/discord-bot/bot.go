@@ -9,6 +9,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
+	"github.com/papaburgs/almagest/pkg/cfg"
 	rt "github.com/papaburgs/almagest/pkg/redistools"
 )
 
@@ -42,7 +43,18 @@ var dh *discordHelper
 var gitCommit string
 
 func main() {
-	log.SetLevel(log.DebugLevel)
+	newLevel := cfg.GetParam(arc, cfg.LogLevel)
+	switch newLevel {
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "info":
+		log.SetLevel(log.InfoLevel)
+	case "warn":
+		log.SetLevel(log.WarnLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	}
+	log.Info("LogLevel updated", "level", newLevel)
 	done := make(chan bool, 1)
 	Start(done)
 

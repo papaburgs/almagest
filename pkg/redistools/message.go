@@ -17,6 +17,7 @@ const (
 	HealthCheckRequest
 	HealthCheckResponse
 	SendToDiscordRequest
+	ControlUpdateLogging
 	Watchdog
 )
 
@@ -48,6 +49,8 @@ func ClassifyMessage(r *redis.Message) (PSMessage, RedisMessageClass, error) {
 		rmc = SendToDiscordRequest
 	case "watchdog":
 		rmc = Watchdog
+	case "logupdate":
+		rmc = ControlUpdateLogging
 	default:
 		rmc = UnknownClass
 	}
