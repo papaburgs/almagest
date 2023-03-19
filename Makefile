@@ -1,23 +1,32 @@
-all: discord-bot
+GO_BUILD = go build
 
-discord-bot: bin/discord-bot discord-gitc
-	podman unshare init/build-discord-bot.sh
+all: discord-bot api watchdog
 
-bin/discord-bot:
-	mkdir -p build/discord
-	go build -o build/discord/discord-bot cmd/discord-bot/*.go
+generic-build: cmd/$(BOT)/gitc.txt
+	mkdir -p build/$(BOT)
+	$(GO_BUILD) -o build/$(BOT)/$(BOT) cmd/$(BOT)/*.go
 
-clean:
-	rm -rf build
+cmd/$(BOT)/gitc.txt: gitc
+	ln --force gitc.txt cmd/$(BOT)/gitc.txt
 
-cmd/discord-bot/gitc.txt: gitc
-	ln gitc.txt cmd/discord-bot/gitc.txt
+image: generic-build 
+	podman unshare init/build-$(BOT).sh 
 
-cmd/api/gitc.txt: gitc
-	ln gitc.txt cmd/api/gitc.txt
+discord-bot:
+	BOT=discord-bot make image
+
+api:
+	BOT=api make image
+
+watchdog:
+	BOT=watchdog make image
 
 gitc:
 	git rev-parse --short HEAD >gitc.txt
 
+clean:
+	rm -rf build
+	find . -name gitc.txt -delete
+	buildah rm --all
 
-PHONY: all clean discord-bot gitc
+PHONY: all clean generic-build build-discord

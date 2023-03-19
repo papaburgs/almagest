@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-PACKAGE=discord-bot
+PACKAGE=api
 echo "Starting build for ${PACKAGE}"
 set -e
 if [[ -z ${PACKAGE} ]]; then
