@@ -43,6 +43,17 @@ var dh *discordHelper
 var gitCommit string
 
 func main() {
+	done := make(chan bool, 1)
+	Start(done)
+
+	// hold application up indefinatly
+	<-done
+}
+
+// Start starts the bot
+func Start(done chan bool) {
+	// define the redis client
+	arc = rt.New()
 	newLevel := cfg.GetParam(arc, cfg.LogLevel)
 	switch newLevel {
 	case "debug":
@@ -55,17 +66,6 @@ func main() {
 		log.SetLevel(log.ErrorLevel)
 	}
 	log.Info("LogLevel updated", "level", newLevel)
-	done := make(chan bool, 1)
-	Start(done)
-
-	// hold application up indefinatly
-	<-done
-}
-
-// Start starts the bot
-func Start(done chan bool) {
-	// define the redis client
-	arc = rt.New()
 	go arc.PublishWatchdog("discord")
 
 	// setup the discord bot
