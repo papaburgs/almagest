@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	redis "github.com/redis/go-redis/v9"
@@ -19,6 +20,8 @@ var arc *rt.AlmagestRedisClient
 var gitCommit string
 
 func main() {
+	// adding a little sleep here so redis can start
+	time.Sleep(5 * time.Second)
 
 	gitCommit = strings.TrimSpace(gitCommit)
 	arc = rt.New()
