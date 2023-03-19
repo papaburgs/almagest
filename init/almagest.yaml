@@ -1,0 +1,44 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    org.opencontainers.image.base.digest/almagestdiscord: sha256:1a9343d6b1900a05ed7792eee5baca8886a4452ffd323b71accfa59a
+    org.opencontainers.image.base.name/almagestdiscord: registry.fedoraproject.org/fedora:latest
+  labels:
+    app: almagest
+  name: almagest
+spec:
+  containers:
+  - args:
+    - redis-server
+    image: docker.io/library/redis:6.2-alpine
+    name: almagest-redis
+    resources: {}
+    volumeMounts:
+    - mountPath: /data
+      name: 889586c2795b98ed3072599320231f35aff6bd5134e13b796bcd36a325aa5d8c-pvc
+  - image: localhost/almagest-discord-bot:latest
+    name: almagest-discord
+    env:
+      - name: DISCORD_BOT_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: discord-bot-token
+            key: token
+    resources: {}
+  - image: localhost/almagest-watchdog:latest
+    name: almagest-watchdog
+    resources: {}
+  - image: localhost/almagest-api:latest
+    name: almagest-api
+    ports:
+      - containerPort: 39788
+    resources: {}
+  hostname: almagest
+  volumes:
+  - name: 889586c2795b98ed3072599320231f35aff6bd5134e13b796bcd36a325aa5d8c-pvc
+    persistentVolumeClaim:
+      claimName: 889586c2795b98ed3072599320231f35aff6bd5134e13b796bcd36a325aa5d8c
+status: {}
+
