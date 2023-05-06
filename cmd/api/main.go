@@ -210,9 +210,13 @@ func main() {
 
 		w.Write([]byte("log level set"))
 	})
+	m.HandleFunc("/api/almagest/siri/", func(w http.ResponseWriter, r *http.Request) {
+		//w.Header().Set("Content-type", "application/json")
+		log.Debug("got a control message", "path", r.URL.Path)
+		w.Write([]byte("open"))
+	})
 	port := "0.0.0.0:39788"
 
-	fmt.Println(gitCommit)
 	log.Info("Starting server", "listening", port, "version", strings.TrimSpace(gitCommit))
 	http.ListenAndServe(port, m)
 
